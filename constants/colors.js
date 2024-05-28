@@ -1,0 +1,15 @@
+export default {
+  primary: '#1A6FA6',
+  secondary: '#50e3c2',
+  background: '#f2f2f2',
+  text: '#333333',
+  border: '#ccc',
+  error: '#ff0000',
+  holiday: '#ff0000',
+  overtime: 'rgba(15, 121, 100, 0.8)',
+  white: '#ffffff',
+  inactiveTintColor: 'gray',
+  rowBackground: '#8BA9C6',
+  danger: '#BF343F', 
+  gray: '#808080',   
+};
