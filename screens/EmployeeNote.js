@@ -1,12 +1,27 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, FlatList, TouchableOpacity, StyleSheet, Alert, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import colors from '../constants/colors';
+import { db } from '../firebaseConfig';
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore"; 
 
 const EmployeeNote = () => {
   const [notes, setNotes] = useState([]);
   const navigation = useNavigation();
+
+  useEffect(() => {
+    fetchNotes();
+  }, []);
+
+  const fetchNotes = async () => {
+    const querySnapshot = await getDocs(collection(db, "notes"));
+    const fetchedNotes = [];
+    querySnapshot.forEach((doc) => {
+      fetchedNotes.push({ ...doc.data(), id: doc.id });
+    });
+    setNotes(fetchedNotes);
+  };
 
   const handleNewNote = () => {
     navigation.navigate('Note', { note: null, setNotes });
@@ -16,14 +31,19 @@ const EmployeeNote = () => {
     navigation.navigate('Note', { note, setNotes });
   };
 
-  const handleDeleteNote = (noteId) => {
-    const updatedNotes = notes.filter(note => note.id !== noteId);
-    setNotes(updatedNotes);
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await deleteDoc(doc(db, "notes", noteId));
+      setNotes(notes.filter(note => note.id !== noteId));
+      Alert.alert('Başarılı', 'Not silindi.');
+    } catch (error) {
+      Alert.alert('Hata', 'Not silinirken bir hata oluştu.');
+    }
   };
 
   const getPreviewText = (text) => {
-    const words = text.split(' ');
-    return words.slice(0, 2).join(' ') + (words.length > 2 ? '...' : '');
+    const firstLine = text.split('\n')[0];
+    return firstLine.length > 20 ? firstLine.slice(0, 20) + '...' : firstLine;
   };
 
   const renderNote = ({ item }) => (
@@ -76,7 +96,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   timestamp: {
-    color: colors.white,
+    color: colors.gray,
     fontSize: 12,
     marginTop: 5,
     textAlign: 'right',

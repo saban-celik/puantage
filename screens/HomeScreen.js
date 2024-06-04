@@ -1,23 +1,32 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Button } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Button, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Calendar } from 'react-native-calendars';
 import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 import colors from '../constants/colors';
-
-const initialEmployees = [
-  { id: '1', name: 'Şaban', salary: 60000, title: 'Mühendis' },
-  { id: '2', name: 'Süleyman', salary: 60000, title: 'Alçı Ustası' },
-  { id: '3', name: 'Eflatun :)', salary: 30000, title: 'Mimar' },
-  { id: '4', name: 'Enes', salary: 20000, title: 'Amele' },
-  { id: '5', name: 'Hasan', salary: 10000, title: 'Bekçi' },
-];
+import { db } from '../firebaseConfig';
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import Icon from 'react-native-vector-icons/Ionicons';
+import CustomCalendar from '../components/Calendar'; 
 
 const HomeScreen = () => {
-  const [employees, setEmployees] = useState(initialEmployees);
-  const [selectedDate, setSelectedDate] = useState('2024-05-28');
+  const [employees, setEmployees] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation();
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const fetchEmployees = async () => {
+    const querySnapshot = await getDocs(collection(db, "employees"));
+    const fetchedEmployees = [];
+    querySnapshot.forEach((doc) => {
+      fetchedEmployees.push({ ...doc.data(), id: doc.id });
+    });
+    setEmployees(fetchedEmployees);
+  };
 
   const handleDayPress = (day) => {
     setSelectedDate(day.dateString);
@@ -32,7 +41,17 @@ const HomeScreen = () => {
     setEmployees([...employees, newEmployee]);
   };
 
-  const formattedDate = format(new Date(selectedDate), 'dd MMMM yyyy EEEE');
+  const handleDeleteEmployee = async (employeeId) => {
+    try {
+      await deleteDoc(doc(db, "employees", employeeId));
+      setEmployees(employees.filter((employee) => employee.id !== employeeId));
+      Alert.alert('Başarılı', 'Çalışan silindi.');
+    } catch (error) {
+      Alert.alert('Hata', 'Çalışan silinirken bir hata oluştu.');
+    }
+  };
+
+  const formattedDate = format(new Date(selectedDate), 'dd MMMM yyyy EEEE', { locale: tr });
 
   return (
     <View style={styles.container}>
@@ -43,12 +62,18 @@ const HomeScreen = () => {
         data={employees}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => handleEmployeePress(item)}>
-            <View style={styles.employeeItem}>
-              <Text>{item.name} - {item.title}</Text>
-              <Text>{item.salary} TL</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.employeeItemContainer}>
+            <TouchableOpacity style={styles.employeeItem} onPress={() => handleEmployeePress(item)}>
+              <View style={styles.employeeInfo}>
+                <Text style={styles.employeeName}>{item.name}</Text>
+                <Text style={styles.employeeTitle}>{item.title}</Text>
+                <Text style={styles.employeeSalary}>{item.salary} TL</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteEmployee(item.id)}>
+              <Icon name="trash" size={20} color={colors.white} />
+            </TouchableOpacity>
+          </View>
         )}
       />
       <TouchableOpacity style={styles.floatingButton} onPress={() => navigation.navigate('AddEmployee', { handleAddEmployee })}>
@@ -62,13 +87,7 @@ const HomeScreen = () => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.calendarContainer}>
-            <Calendar
-              onDayPress={handleDayPress}
-              current={selectedDate}
-              markedDates={{
-                [selectedDate]: { selected: true, marked: true, selectedColor: colors.primary },
-              }}
-            />
+            <CustomCalendar onDayPress={handleDayPress} />
             <Button title="Kapat" onPress={() => setModalVisible(false)} color={colors.primary} />
           </View>
         </View>
@@ -92,11 +111,45 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderRadius: 5,
   },
-  employeeItem: {
+  employeeItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 10,
-    fontSize: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginVertical: 5,
+    backgroundColor: colors.white,
+    borderRadius: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 1,
+    elevation: 3,
+  },
+  employeeItem: {
+    flex: 1,
+  },
+  employeeInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  employeeName: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: 'bold',
+  },
+  employeeTitle: {
+    fontSize: 14,
+    color: colors.gray,
+  },
+  employeeSalary: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  deleteButton: {
+    marginLeft: 10,
+    backgroundColor: colors.danger,
+    padding: 5,
+    borderRadius: 5,
   },
   floatingButton: {
     position: 'absolute',

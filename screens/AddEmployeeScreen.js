@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, TextInput, StyleSheet, Button, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { db } from '../firebaseConfig';
+import { collection, addDoc } from "firebase/firestore";
 import colors from '../constants/colors';
 
 const AddEmployeeScreen = () => {
@@ -11,17 +13,22 @@ const AddEmployeeScreen = () => {
   const route = useRoute();
   const { handleAddEmployee } = route.params;
 
-  const addEmployee = () => {
+  const addEmployee = async () => {
     if (name && salary && title) {
-      const newEmployee = {
-        id: Date.now().toString(),
-        name,
-        salary: parseFloat(salary),
-        title,
-      };
-      handleAddEmployee(newEmployee);
-      Alert.alert('Başarılı', 'Çalışan eklendi.');
-      navigation.goBack();
+      try {
+        const newEmployee = {
+          name,
+          salary: parseFloat(salary),
+          title,
+        };
+        const docRef = await addDoc(collection(db, "employees"), newEmployee);
+        newEmployee.id = docRef.id;
+        handleAddEmployee(newEmployee);
+        Alert.alert('Başarılı', 'Çalışan eklendi.');
+        navigation.goBack();
+      } catch (error) {
+        Alert.alert('Hata', 'Çalışan eklenirken bir hata oluştu.');
+      }
     } else {
       Alert.alert('Hata', 'Lütfen tüm alanları doldurun.');
     }
